@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f5f0e6">
+    <meta name="description" content="PantryChef matches a pantry you select to curated recipes that need nothing else.">
+    <title>PantryChef — dinner from what you have</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="js/app.js" defer></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="site-header" aria-label="PantryChef demo information">
+        <a class="brand" href="#" data-action="home" aria-label="PantryChef home">
+          <span class="brand-mark" aria-hidden="true">P</span>
+          <span>PantryChef</span>
+        </a>
+        <div class="honesty-panel">
+          <span class="demo-label">MVP demo</span>
+          <p>Rules-based matching with curated recipes. Not photo recognition.</p>
+        </div>
+      </header>
+
+      <section id="picker-screen" class="screen" aria-labelledby="picker-title">
+        <div class="hero-copy">
+          <p class="eyebrow"><span aria-hidden="true">✦</span> Dinner from what you have</p>
+          <h1 id="picker-title">Your pantry already knows what’s for dinner.</h1>
+          <p class="lede">Pick what you own. We’ll show only recipes that need nothing else.</p>
+        </div>
+
+        <div class="pantry-window" aria-hidden="true">
+          <div class="window-topline">
+            <span>Tonight’s pantry</span>
+            <span class="live-dot">Ready</span>
+          </div>
+          <div class="ingredient-orbit">
+            <span class="orbit-item orbit-tomato">Tomatoes</span>
+            <span class="orbit-item orbit-rice">Rice</span>
+            <span class="orbit-item orbit-eggs">Eggs</span>
+            <span class="orbit-item orbit-spinach">Spinach</span>
+            <span class="orbit-item orbit-pasta">Pasta</span>
+          </div>
+          <div class="match-preview">
+            <span class="preview-number">5</span>
+            <span>exact dinners<br>nothing to buy</span>
+          </div>
+        </div>
+
+        <button class="primary-button demo-button" type="button" data-action="demo">
+          <span>
+            <strong>Try the 10-second demo</strong>
+            <small>Loads a disclosed sample pantry</small>
+          </span>
+          <span class="button-arrow" aria-hidden="true">→</span>
+        </button>
+        <p class="tap-note"><span aria-hidden="true">●</span> One tap · instant local matching · no upload</p>
+
+        <div class="section-divider" aria-hidden="true"><span>or use your own pantry</span></div>
+
+        <section class="picker-panel" aria-labelledby="pantry-heading">
+          <div class="section-heading">
+            <div>
+              <p class="step-kicker">Your ingredients</p>
+              <h2 id="pantry-heading">What do you have?</h2>
+            </div>
+            <span id="selected-count" class="selected-count" aria-live="polite">0 selected</span>
+          </div>
+          <p class="helper-copy">Include basics such as oil and salt — the matcher hides any recipe that asks for more.</p>
+
+          <label class="search-field" for="ingredient-search">
+            <span aria-hidden="true">⌕</span>
+            <input id="ingredient-search" type="search" aria-label="Find an ingredient" placeholder="Find an ingredient" autocomplete="off">
+          </label>
+
+          <div id="ingredient-groups" class="ingredient-groups"></div>
+          <p id="empty-search" class="empty-search" hidden>No pantry items match that search.</p>
+
+          <button id="match-button" class="secondary-button" type="button" data-action="match" disabled>
+            Find exact recipe matches
+            <span aria-hidden="true">→</span>
+          </button>
+        </section>
+      </section>
+
+      <section id="results-screen" class="screen" aria-labelledby="results-title" hidden>
+        <button class="back-button" type="button" data-action="back">
+          <span aria-hidden="true">←</span> Edit pantry
+        </button>
+
+        <div class="results-hero">
+          <p id="results-kicker" class="eyebrow"><span aria-hidden="true">✦</span> Exact pantry matches</p>
+          <h1 id="results-title" tabindex="-1"></h1>
+          <p id="results-summary" class="lede"></p>
+          <div class="honest-result-note">
+            <span aria-hidden="true">✓</span>
+            <p><strong>Honest match:</strong> every listed ingredient is in the pantry above. No hidden staples or substitutions.</p>
+          </div>
+        </div>
+
+        <section class="selected-pantry" aria-labelledby="selected-pantry-title">
+          <div class="mini-heading">
+            <h2 id="selected-pantry-title">Matched against</h2>
+            <span id="pantry-count"></span>
+          </div>
+          <div id="selected-pantry-list" class="selected-pantry-list"></div>
+        </section>
+
+        <div id="recipe-list" class="recipe-list" aria-live="polite"></div>
+
+        <div id="no-results" class="no-results" hidden>
+          <span class="empty-pot" aria-hidden="true">○</span>
+          <h2>No exact dinner yet.</h2>
+          <p>Add a few more ingredients, or try the sample pantry to see five exact matches.</p>
+          <button class="primary-button compact-button" type="button" data-action="demo">
+            Try the demo pantry <span aria-hidden="true">→</span>
+          </button>
+        </div>
+
+        <button class="secondary-button start-over-button" type="button" data-action="back">
+          Change ingredients
+          <span aria-hidden="true">↑</span>
+        </button>
+      </section>
+
+      <footer>
+        <span class="demo-label">MVP demo</span>
+        <p>Curated local data · Rules engine · Works offline · No accounts or uploads</p>
+      </footer>
+    </main>
+  </body>
+</html>
