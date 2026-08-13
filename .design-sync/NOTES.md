@@ -30,6 +30,11 @@ component library. The app itself was **not** modified.
   `/opt/pw-browsers` is build **1194**, which only playwright 1.56.0 pins. Latest
   (1.62.x) pins 1234 and fails with `Executable doesn't exist`. Installed into
   `.ds-sync/`, so a fresh clone needs it again.
+- **The pinned chromium build is machine-specific — don't assume the number above.**
+  A Windows session with a pre-cached `ms-playwright` build 1208 needed playwright
+  1.58.0, not 1.56.0. Read the cache dir name (`chromium-<build>`), then confirm
+  the candidate version's pin via `raw.githubusercontent.com/microsoft/playwright/v<X.Y.Z>/packages/playwright-core/browsers.json`
+  before installing — don't reuse a build number recorded on a different machine.
 
 ## Known render warns
 

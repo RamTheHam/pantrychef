@@ -9,5 +9,6 @@
   "tokensGlob": "dist/tokens.css",
   "docsDir": "docs",
   "guidelinesGlob": [],
-  "readmeHeader": ".design-sync/conventions.md"
+  "readmeHeader": ".design-sync/conventions.md",
+  "projectId": "dcf0800a-40d9-4360-a5b7-12d81569494d"
 }
