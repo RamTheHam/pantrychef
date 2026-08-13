@@ -50,8 +50,20 @@
     <section id="results-screen" class="screen screen--results" hidden>
       <header class="brand-row">
         <button id="retake-btn" class="text-btn" type="button">← Retake</button>
-        <span class="demo-label">MVP demo</span>
+        <button id="history-btn" class="text-btn" type="button">My dishes</button>
       </header>
+
+      <div id="mascot-box" class="mascot-box" hidden>
+        <span class="mascot-avatar" aria-hidden="true">🌿</span>
+        <div class="mascot-text">
+          <span id="mascot-name" class="mascot-name">Basil</span>
+          <p id="mascot-line" class="mascot-line"></p>
+        </div>
+      </div>
+
+      <div id="why-note" class="why-note" hidden>
+        <span aria-hidden="true">✦</span> I picked these from what you liked before.
+      </div>
 
       <div class="results-hero">
         <p id="results-kicker" class="eyebrow"></p>
@@ -68,8 +80,19 @@
 
       <footer class="site-footer">
         <span class="demo-label">MVP demo</span>
-        <p>AI ingredient recognition · matches only what you have</p>
+        <p>AI ingredient recognition · matches only what you have · memory stays on your phone</p>
       </footer>
+    </section>
+
+    <!-- SCREEN 4: HISTORY -->
+    <section id="history-screen" class="screen screen--results" hidden>
+      <header class="brand-row">
+        <button id="back-from-history" class="text-btn" type="button">← Back</button>
+        <span class="demo-label">MVP demo</span>
+      </header>
+      <h1 class="history-title">Dishes I’ve made</h1>
+      <p id="history-count" class="history-count"></p>
+      <div id="history-list" class="history-list"></div>
     </section>
 
   </main>
