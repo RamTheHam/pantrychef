@@ -3,16 +3,10 @@
 
   var API_URL = window.PANTRYCHEF_API_URL || "https://ramtheham--pantrychef-analyze.modal.run";
 
-  // ---- local memory (GDPR-safe: everything stays on this device) ----
+  // ---- local memory (GDPR-safe) ----
   var MEM_KEY = "pantrychef.v1";
-  function loadMemory() {
-    try {
-      return JSON.parse(localStorage.getItem(MEM_KEY)) || {};
-    } catch (e) { return {}; }
-  }
-  function saveMemory(mem) {
-    try { localStorage.setItem(MEM_KEY, JSON.stringify(mem)); } catch (e) {}
-  }
+  function loadMemory() { try { return JSON.parse(localStorage.getItem(MEM_KEY)) || {}; } catch (e) { return {}; } }
+  function saveMemory(m) { try { localStorage.setItem(MEM_KEY, JSON.stringify(m)); } catch (e) {} }
   var mem = loadMemory();
   if (!mem.mascot_name) mem.mascot_name = "Basil";
   if (!mem.history) mem.history = [];
@@ -21,44 +15,57 @@
 
   var els = {
     cameraScreen: document.getElementById("camera-screen"),
-    loadingScreen: document.getElementById("loading-screen"),
+    revealScreen: document.getElementById("reveal-screen"),
     resultsScreen: document.getElementById("results-screen"),
     historyScreen: document.getElementById("history-screen"),
+    settingsScreen: document.getElementById("settings-screen"),
     captureBtn: document.getElementById("capture-btn"),
+    libraryBtn: document.getElementById("library-btn"),
+    multiBtn: document.getElementById("multi-btn"),
     fileInput: document.getElementById("file-input"),
+    libraryInput: document.getElementById("library-input"),
+    settingsBtn: document.getElementById("settings-btn"),
+    noteInput: document.getElementById("note-input"),
     assumeBasics: document.getElementById("assume-basics"),
-    loadingStatus: document.getElementById("loading-status"),
+    revealCard: document.getElementById("reveal-card"),
+    revealContent: document.getElementById("reveal-content"),
+    revealThinking: document.getElementById("reveal-thinking"),
+    revealSub: document.getElementById("reveal-sub"),
     resultsKicker: document.getElementById("results-kicker"),
     resultsTitle: document.getElementById("results-title"),
-    resultsSummary: document.getElementById("results-summary"),
     seenIngredients: document.getElementById("seen-ingredients"),
     recipeList: document.getElementById("recipe-list"),
-    noResults: document.getElementById("no-results"),
     retakeBtn: document.getElementById("retake-btn"),
-    mascotBox: document.getElementById("mascot-box"),
-    mascotName: document.getElementById("mascot-name"),
-    mascotLine: document.getElementById("mascot-line"),
-    whyNote: document.getElementById("why-note"),
     historyBtn: document.getElementById("history-btn"),
     historyList: document.getElementById("history-list"),
     historyCount: document.getElementById("history-count"),
-    backFromHistory: document.getElementById("back-from-history")
+    backFromHistory: document.getElementById("back-from-history"),
+    backFromSettings: document.getElementById("back-from-settings"),
+    summaryBox: document.getElementById("summary-box"),
+    exportBtn: document.getElementById("export-btn"),
+    copyBtn: document.getElementById("copy-btn"),
+    clearBtn: document.getElementById("clear-btn"),
+    cameraMascotLine: document.getElementById("camera-mascot-line")
   };
+
+  var multiMode = false;
+  var pendingImages = [];   // dataURLs queued in x2 mode
 
   function show(screen) {
     els.cameraScreen.hidden = screen !== "camera";
-    els.loadingScreen.hidden = screen !== "loading";
+    els.revealScreen.hidden = screen !== "reveal";
     els.resultsScreen.hidden = screen !== "results";
     els.historyScreen.hidden = screen !== "history";
+    els.settingsScreen.hidden = screen !== "settings";
     window.scrollTo(0, 0);
   }
 
-  function fileToB64(file) {
+  function fileToDataUrl(file) {
     return new Promise(function (resolve, reject) {
-      var reader = new FileReader();
-      reader.onload = function () { resolve(reader.result); };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
+      var r = new FileReader();
+      r.onload = function () { resolve(r.result); };
+      r.onerror = reject;
+      r.readAsDataURL(file);
     });
   }
 
@@ -68,48 +75,51 @@
       var img = new Image();
       img.onload = function () {
         var scale = Math.min(1, maxDim / Math.max(img.width, img.height));
-        var canvas = document.createElement("canvas");
-        canvas.width = Math.round(img.width * scale);
-        canvas.height = Math.round(img.height * scale);
-        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/jpeg", 0.82));
+        var c = document.createElement("canvas");
+        c.width = Math.round(img.width * scale);
+        c.height = Math.round(img.height * scale);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        resolve(c.toDataURL("image/jpeg", 0.82));
       };
       img.onerror = function () { resolve(dataUrl); };
       img.src = dataUrl;
     });
   }
 
-  // Derive an anonymous taste digest from local history (never the raw text).
+  function escapeHtml(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function cap(s) { return s.replace(/\b\w/g, function (l) { return l.toUpperCase(); }); }
+
+  // ---- taste digest (anonymous, from local history) ----
   function buildProfile() {
     var liked = {}, disliked = {};
-    var history = mem.history || [];
-    for (var i = 0; i < history.length; i++) {
-      var h = history[i];
-      var ing = h.ingredients || [];
+    var hist = mem.history || [];
+    for (var i = 0; i < hist.length; i++) {
+      var h = hist[i], ing = h.ingredients || [];
       var bucket = (h.stars >= 4) ? liked : (h.stars <= 2 ? disliked : null);
-      if (bucket) {
-        for (var j = 0; j < ing.length; j++) bucket[ing[j]] = true;
-      }
+      if (bucket) for (var j = 0; j < ing.length; j++) bucket[ing[j]] = true;
     }
     return {
       mascot_name: mem.mascot_name,
       liked: Object.keys(liked),
       disliked: Object.keys(disliked),
       last_pantry: mem.last_pantry || [],
-      history: (history || []).slice(-8).map(function (h) {
+      note: els.noteInput.value.trim(),
+      history: (hist || []).slice(-8).map(function (h) {
         return { name: h.name, stars: h.stars, comment: h.comment || "" };
       })
     };
   }
 
-  function analyze(dataUrl) {
-    show("loading");
-    els.loadingStatus.textContent = "Analysing the photo…";
+  function analyze(dataUrls) {
     return fetch(API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        image: dataUrl,
+        images: dataUrls,
         assume_basics: els.assumeBasics.checked,
         profile: buildProfile()
       })
@@ -123,56 +133,77 @@
     });
   }
 
-  function escapeHtml(s) {
-    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
-      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
-    });
-  }
-  function cap(s) { return s.replace(/\b\w/g, function (l) { return l.toUpperCase(); }); }
+  // ---- reveal: shake 2s while thinking, then flip to show recipe #1 ----
+  function reveal(result) {
+    show("reveal");
+    var first = result.results && result.results[0];
+    els.revealThinking.textContent = "Reading your food…";
+    els.revealCard.classList.remove("flipped", "shake");
+    els.revealSub.textContent = "";
 
-  function starWidget(recipeId, current) {
-    var stars = "";
-    for (var s = 1; s <= 5; s++) {
-      stars += '<button class="star' + (s <= (current || 0) ? " on" : "") + '" data-star="' + s + '" data-recipe-id="' + recipeId + '" aria-label="' + s + ' stars">★</button>';
+    // shake while the model "thinks" (minimum 2s), then flip
+    els.revealCard.classList.add("shake");
+    var minShake = 2000;
+    var started = Date.now();
+
+    function flip() {
+      var elapsed = Date.now() - started;
+      var wait = Math.max(0, minShake - elapsed);
+      setTimeout(function () {
+        els.revealCard.classList.remove("shake");
+        els.revealCard.classList.add("flipped");
+        renderRevealFront(first, result);
+        setTimeout(function () { renderResults(result); }, 2200);
+      }, wait);
     }
-    return stars;
+
+    if (first) {
+      flip();
+    } else {
+      setTimeout(function () {
+        els.revealCard.classList.remove("shake");
+        els.revealCard.classList.add("flipped");
+        renderRevealFront(null, result);
+        setTimeout(function () { renderResults(result); }, 1600);
+      }, minShake);
+    }
   }
 
-  function renderRecipes(result) {
+  function renderRevealFront(first, result) {
+    if (!first) {
+      els.revealContent.innerHTML = '<p class="reveal-none">No exact match. Try adding more ingredients.</p>';
+      return;
+    }
+    els.revealContent.innerHTML =
+      '<div class="reveal-recipe">' +
+        '<div class="reveal-meta"><span class="match-tag">Exact match</span><span class="time-tag">' + first.time + ' min</span></div>' +
+        '<h2>' + escapeHtml(first.name) + '</h2>' +
+        '<p class="reveal-desc">' + escapeHtml(first.description) + '</p>' +
+        '<div class="reveal-proof">0 to buy · from ' + first.detected_ingredients.length + ' of your ingredients</div>' +
+      '</div>';
+    els.revealSub.textContent = (result.mascot_line || "");
+  }
+
+  function renderResults(result) {
     var exact = result.count_exact || 0;
     var detected = result.detected || [];
-
-    // remember this pantry for next time's "you've got X this time"
     mem.last_pantry = detected.slice();
     saveMemory(mem);
 
     els.resultsKicker.innerHTML = '<span aria-hidden="true">✦</span> What I see on your counter';
-    if (exact > 0) {
-      els.resultsTitle.innerHTML = "<span>" + exact + "</span> " + (exact === 1 ? "dinner" : "dinners") + ". <em>Zero</em> extra ingredients.";
-      els.resultsSummary.textContent = "Cooked from exactly what you have. Nothing to buy.";
-    } else {
-      els.resultsTitle.innerHTML = "Almost there.";
-      els.resultsSummary.textContent = "I spotted these ingredients but no recipe fits exactly yet. Closest matches below.";
-    }
+    els.resultsTitle.innerHTML = exact > 0
+      ? "<span>" + exact + "</span> " + (exact === 1 ? "dinner" : "dinners") + " from your ingredients."
+      : "Almost there.";
 
-    var chips = detected.map(function (item) {
-      return '<span class="seen-chip">' + escapeHtml(cap(item)) + "</span>";
-    }).join("");
+    var chips = detected.map(function (i) { return '<span class="seen-chip">' + escapeHtml(cap(i)) + "</span>"; }).join("");
     els.seenIngredients.innerHTML = chips || '<span class="seen-chip muted">No items recognised</span>';
 
-    // mascot + why
-    els.mascotName.textContent = result.mascot_name || mem.mascot_name || "Basil";
-    els.mascotLine.textContent = result.mascot_line || "";
-    els.mascotBox.hidden = !result.mascot_line;
-    els.whyNote.hidden = !result.taste_used;
-
+    // mascot line shown at top of results too (as a slim bar)
     els.recipeList.innerHTML = result.results.map(function (recipe, i) {
       var featured = recipe.match === "exact" && i === 0;
       var tag = recipe.match === "exact" ? "Nothing to buy" : recipe.missing.length + " to buy";
       var missingChips = recipe.missing.map(function (m) { return cap(escapeHtml(m)); }).join(", ");
-      var dietChips = (recipe.dietary || []).map(function (d) {
-        return '<span class="diet-chip">' + escapeHtml(d) + "</span>";
-      }).join("");
+      var dietChips = (recipe.dietary || []).map(function (d) { return '<span class="diet-chip">' + escapeHtml(d) + "</span>"; }).join("");
       var serves = recipe.serves ? '<span class="serve-tag">Serves ' + recipe.serves + "</span>" : "";
       var graded = (mem.history || []).filter(function (h) { return h.name === recipe.name; })[0];
       var proTip = recipe.pro_tip ? '<div class="pro-tip"><span class="pro-tip-label">Pro tip</span><p>' + escapeHtml(recipe.pro_tip) + "</p></div>" : "";
@@ -184,54 +215,49 @@
           "<h2>" + escapeHtml(recipe.name) + "</h2>" +
           '<p class="recipe-description">' + escapeHtml(recipe.description) + "</p>" +
           (dietChips ? '<div class="diet-row">' + dietChips + "</div>" : "") +
-          '<div class="recipe-proof"><span>' + recipe.detected_ingredients.length +
-          " of your ingredients</span><span>" + tag + "</span></div>" +
+          '<div class="recipe-proof"><span>' + recipe.detected_ingredients.length + " of your ingredients</span><span>" + tag + "</span></div>" +
         "</div>" +
         '<details class="recipe-details">' +
           "<summary>See ingredients &amp; method</summary>" +
           '<div class="recipe-body">' +
-            "<h3>Uses only</h3><ul>" + recipe.recipe_ingredients.map(function (ing) {
-              return "<li>" + cap(escapeHtml(ing)) + "</li>";
-            }).join("") + "</ul>" +
+            "<h3>Uses only</h3><ul>" + recipe.recipe_ingredients.map(function (ing) { return "<li>" + cap(escapeHtml(ing)) + "</li>"; }).join("") + "</ul>" +
             (recipe.missing.length ? "<h3>You'd need</h3><p class=\"missing-list\">" + missingChips + "</p>" : "") +
             "<h3>Method</h3><ol>" + recipe.steps.map(function (s) { return "<li>" + escapeHtml(s) + "</li>"; }).join("") + "</ol>" +
             proTip +
           "</div>" +
         "</details>" +
         '<div class="grade-row" data-name="' + escapeHtml(recipe.name) + '">' +
-          '<span class="grade-prompt">Grade it and I\u2019ll know you made it:</span>' +
+          '<span class="grade-prompt">Grade it and I’ll know you made it:</span>' +
           '<span class="star-row">' + starWidget(recipe.id, graded ? graded.stars : 0) + "</span>" +
           '<input class="comment-input" type="text" placeholder="one word if you like…" maxlength="80" data-name="' + escapeHtml(recipe.name) + '">' +
         "</div>" +
       "</article>";
     }).join("");
 
-    els.noResults.hidden = result.results.length > 0;
     show("results");
   }
 
-  // ---- grading (stars + comment) -> local memory ----
+  function starWidget(id, current) {
+    var out = "";
+    for (var s = 1; s <= 5; s++) out += '<button class="star' + (s <= (current || 0) ? " on" : "") + '" data-star="' + s + '" data-recipe-id="' + id + '" aria-label="' + s + ' stars">★</button>';
+    return out;
+  }
+
   function gradeRecipe(name, stars) {
     var hist = mem.history || [];
     var existing = hist.filter(function (h) { return h.name === name; })[0];
-    if (existing) { existing.stars = stars; }
-    else {
-      hist.push({ name: name, stars: stars, comment: "", ingredients: [], date: Date.now() });
-    }
-    // capture the recipe's ingredients for taste derivation
+    if (existing) existing.stars = stars;
+    else hist.push({ name: name, stars: stars, comment: "", ingredients: [], date: Date.now() });
     var card = document.querySelector('.recipe-card[data-name="' + CSS.escape(name) + '"]');
     if (card) {
-      var ingEls = card.querySelectorAll(".recipe-body ul li");
-      var ing = [];
-      for (var i = 0; i < ingEls.length; i++) ing.push(ingEls[i].textContent.trim().toLowerCase());
+      var lis = card.querySelectorAll(".recipe-body ul li"), ing = [];
+      for (var i = 0; i < lis.length; i++) ing.push(lis[i].textContent.trim().toLowerCase());
       (existing || hist[hist.length - 1]).ingredients = ing;
     }
     mem.history = hist;
     saveMemory(mem);
     renderStars(name, stars);
-    return existing || hist[hist.length - 1];
   }
-
   function renderStars(name, stars) {
     var row = document.querySelector('.grade-row[data-name="' + CSS.escape(name) + '"] .star-row');
     if (!row) return;
@@ -239,28 +265,79 @@
     row.innerHTML = starWidget(id, stars);
   }
 
-  // event delegation for stars + comments + buttons
+  // ---- capture flow ----
+  function handleImages(dataUrls) {
+    // strip a possible single wrap
+    var imgs = Array.isArray(dataUrls) ? dataUrls : [dataUrls];
+    show("reveal");
+    els.revealCard.classList.remove("flipped");
+    els.revealCard.classList.add("shake");
+    // run the request; reveal() drives the flip timing
+    analyze(imgs).then(reveal).catch(function (err) {
+      els.revealThinking.textContent = "Something went wrong: " + err.message;
+      setTimeout(function () { show("camera"); }, 2200);
+    });
+  }
+
+  els.captureBtn.addEventListener("click", function () { els.fileInput.click(); });
+  els.libraryBtn.addEventListener("click", function () { els.libraryInput.click(); });
+  els.multiBtn.addEventListener("click", function () {
+    multiMode = !multiMode;
+    els.multiBtn.classList.toggle("active", multiMode);
+    pendingImages = [];
+    els.cameraMascotLine.textContent = multiMode ? "Snap two photos — I’ll combine what I see" : "Just photograph your ingredients";
+  });
+
+  els.fileInput.addEventListener("change", function () {
+    var f = els.fileInput.files && els.fileInput.files[0];
+    if (!f) return;
+    fileToDataUrl(f).then(compressImage).then(function (dataUrl) {
+      if (multiMode) {
+        pendingImages.push(dataUrl);
+        if (pendingImages.length >= 2) {
+          handleImages(pendingImages.slice());
+          pendingImages = [];
+        } else {
+          els.cameraMascotLine.textContent = "Got one — snap the second";
+        }
+      } else {
+        handleImages([dataUrl]);
+      }
+    });
+    els.fileInput.value = "";
+  });
+
+  els.libraryInput.addEventListener("change", function () {
+    var files = els.libraryInput.files;
+    if (!files || !files.length) return;
+    var jobs = [];
+    for (var i = 0; i < files.length; i++) jobs.push(fileToDataUrl(files[i]).then(compressImage));
+    Promise.all(jobs).then(function (dataUrls) { handleImages(dataUrls); });
+    els.libraryInput.value = "";
+  });
+
+  // ---- delegation: stars, comments, nav ----
   document.addEventListener("click", function (e) {
-    var starBtn = e.target.closest(".star");
-    if (starBtn) {
-      var name = starBtn.closest(".grade-row").getAttribute("data-name");
-      gradeRecipe(name, parseInt(starBtn.getAttribute("data-star"), 10));
-      return;
-    }
+    var star = e.target.closest(".star");
+    if (star) { gradeRecipe(star.closest(".grade-row").getAttribute("data-name"), parseInt(star.getAttribute("data-star"), 10)); return; }
     if (e.target.closest("#retake-btn")) { els.fileInput.value = ""; show("camera"); return; }
     if (e.target.closest("#history-btn")) { renderHistory(); show("history"); return; }
     if (e.target.closest("#back-from-history")) { show("camera"); return; }
+    if (e.target.closest("#settings-btn")) { renderSettings(); show("settings"); return; }
+    if (e.target.closest("#back-from-settings")) { show("camera"); return; }
+    if (e.target.closest("#export-btn")) { exportData(); return; }
+    if (e.target.closest("#copy-btn")) { copyData(); return; }
+    if (e.target.closest("#clear-btn")) { clearData(); return; }
   });
-
   document.addEventListener("change", function (e) {
     if (e.target.classList.contains("comment-input")) {
       var name = e.target.getAttribute("data-name");
-      var hist = mem.history || [];
-      var h = hist.filter(function (x) { return x.name === name; })[0];
+      var h = (mem.history || []).filter(function (x) { return x.name === name; })[0];
       if (h) { h.comment = e.target.value; saveMemory(mem); }
     }
   });
 
+  // ---- history ----
   function renderHistory() {
     var hist = mem.history || [];
     els.historyCount.textContent = hist.length + (hist.length === 1 ? " dish" : " dishes") + " cooked";
@@ -271,25 +348,49 @@
     els.historyList.innerHTML = hist.slice().reverse().map(function (h) {
       var stars = "";
       for (var s = 1; s <= 5; s++) stars += '<span class="star static' + (s <= h.stars ? " on" : "") + '">★</span>';
-      return '<div class="history-item">' +
-        '<div class="history-top"><span class="history-name">' + escapeHtml(h.name) + "</span>" +
-        '<span class="star-row static">' + stars + "</span></div>" +
-        (h.comment ? '<p class="history-comment">\u201C' + escapeHtml(h.comment) + '\u201D</p>' : "") +
-      "</div>";
+      return '<div class="history-item"><div class="history-top"><span class="history-name">' + escapeHtml(h.name) + '</span><span class="star-row static">' + stars + '</span></div>' +
+        (h.comment ? '<p class="history-comment">\u201C' + escapeHtml(h.comment) + '\u201D</p>' : "") + '</div>';
     }).join("");
   }
 
-  els.captureBtn.addEventListener("click", function () { els.fileInput.click(); });
-  els.fileInput.addEventListener("change", function () {
-    var file = els.fileInput.files && els.fileInput.files[0];
-    if (!file) return;
-    fileToB64(file)
-      .then(function (dataUrl) { return compressImage(dataUrl); })
-      .then(analyze)
-      .then(renderRecipes)
-      .catch(function (err) {
-        els.loadingStatus.textContent = "Something went wrong: " + err.message;
-        setTimeout(function () { show("camera"); }, 2500);
-      });
-  });
+  // ---- settings: show the exact summary shared with the AI ----
+  function renderSettings() {
+    var p = buildProfile();
+    var rows = "";
+    rows += '<div class="summary-kv"><span class="k">Mascot</span><span class="v">' + escapeHtml(p.mascot_name) + '</span></div>';
+    rows += '<div class="summary-kv"><span class="k">You like</span><span class="v">' + (p.liked.length ? p.liked.map(escapeHtml).join(", ") : "—") + '</span></div>';
+    rows += '<div class="summary-kv"><span class="k">You avoid</span><span class="v">' + (p.disliked.length ? p.disliked.map(escapeHtml).join(", ") : "—") + '</span></div>';
+    rows += '<div class="summary-kv"><span class="k">Last pantry</span><span class="v">' + (p.last_pantry.length ? p.last_pantry.map(escapeHtml).join(", ") : "—") + '</span></div>';
+    rows += '<div class="summary-kv"><span class="k">Your note</span><span class="v">' + (p.note ? escapeHtml(p.note) : "—") + '</span></div>';
+    var histNames = p.history.map(function (h) { return escapeHtml(h.name) + " (" + h.stars + "★)"; }).join(", ");
+    rows += '<div class="summary-kv"><span class="k">Cooked</span><span class="v">' + (histNames || "—") + '</span></div>';
+    els.summaryBox.innerHTML = rows;
+  }
+
+  function fullExport() {
+    return JSON.stringify({
+      exported_at: new Date().toISOString(),
+      mascot_name: mem.mascot_name,
+      last_pantry: mem.last_pantry || [],
+      history: mem.history || []
+    }, null, 2);
+  }
+  function exportData() {
+    var blob = new Blob([fullExport()], { type: "application/json" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "pantrychef-data.json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+  function copyData() {
+    navigator.clipboard.writeText(fullExport()).catch(function () {});
+  }
+  function clearData() {
+    if (!confirm("Erase all your PantryChef data on this phone? This cannot be undone.")) return;
+    localStorage.removeItem(MEM_KEY);
+    mem = { mascot_name: "Basil", history: [], last_pantry: [] };
+    saveMemory(mem);
+    renderSettings();
+  }
 })();

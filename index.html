@@ -12,79 +12,86 @@
 <body>
   <main class="app-shell">
 
-    <!-- SCREEN 1: CAMERA -->
+    <!-- CAMERA SCREEN (single, Vivino-style, minimal scroll) -->
     <section id="camera-screen" class="screen screen--camera">
-      <header class="brand-row">
+      <header class="topbar">
         <span class="brand">PantryChef</span>
-        <span class="demo-label">MVP demo</span>
+        <button id="settings-btn" class="icon-btn" type="button" aria-label="Settings">⚙</button>
       </header>
 
-      <div class="camera-stage">
-        <button id="capture-btn" class="camera-btn" type="button" aria-label="Take a photo of your food">
-          <span class="camera-ring" aria-hidden="true">
-            <span class="camera-icon">✚</span>
-          </span>
-        </button>
-        <p class="camera-hint">Put your food on the counter,<br>take a photo, get a recipe</p>
-        <input id="file-input" type="file" accept="image/*" capture="environment" hidden>
+      <div class="camera-body">
+        <div class="camera-stage">
+          <div class="control-row">
+            <button id="library-btn" class="side-btn" type="button" aria-label="Choose from photos">
+              <span class="side-icon" aria-hidden="true">🖼</span>
+              <span class="side-label">Library</span>
+            </button>
+
+            <button id="capture-btn" class="camera-btn" type="button" aria-label="Take a photo of your food">
+              <span class="camera-ring" aria-hidden="true"></span>
+            </button>
+
+            <button id="multi-btn" class="side-btn" type="button" aria-label="Multiple photos">
+              <span class="side-icon" aria-hidden="true">⊕</span>
+              <span class="side-label">x2</span>
+            </button>
+          </div>
+          <input id="file-input" type="file" accept="image/*" capture="environment" hidden>
+          <input id="library-input" type="file" accept="image/*" hidden multiple>
+        </div>
+
+        <div class="mascot-prompt">
+          <span class="mascot-avatar" aria-hidden="true">🌿</span>
+          <p id="camera-mascot-line" class="mascot-prompt-line">Just photograph your ingredients</p>
+        </div>
+
+        <input id="note-input" class="note-input" type="text" placeholder="Anything else? (optional — what do you fancy?)" maxlength="120">
+
+        <label class="basics-toggle">
+          <input id="assume-basics" type="checkbox" checked>
+          <span>Assume basics — salt, pepper, herbs, butter or oil</span>
+        </label>
       </div>
-
-      <label class="basics-toggle">
-        <input id="assume-basics" type="checkbox" checked>
-        <span>Assume I have basics — salt, pepper, a dried herb or two, butter or oil</span>
-      </label>
-
-      <p class="honesty-note">Photos are analysed by AI to list ingredients. MVP demo — vision model, not a real chef.</p>
     </section>
 
-    <!-- SCREEN 2: LOADING -->
-    <section id="loading-screen" class="screen screen--loading" hidden>
-      <div class="loading-inner">
-        <div class="pulse-ring" aria-hidden="true"></div>
-        <h2>Reading your food…</h2>
-        <p id="loading-status">Looking at the ingredients</p>
+    <!-- REVEAL SCREEN (card flip while the model thinks) -->
+    <section id="reveal-screen" class="screen screen--reveal" hidden>
+      <div id="reveal-card" class="flip-card">
+        <div class="flip-card-inner">
+          <div class="flip-face flip-back">
+            <span class="mascot-avatar big" aria-hidden="true">🌿</span>
+            <p id="reveal-thinking" class="reveal-thinking">Reading your food…</p>
+          </div>
+          <div class="flip-face flip-front">
+            <div id="reveal-content"></div>
+          </div>
+        </div>
       </div>
+      <p id="reveal-sub" class="reveal-sub"></p>
     </section>
 
-    <!-- SCREEN 3: RESULTS -->
+    <!-- RESULTS SCREEN -->
     <section id="results-screen" class="screen screen--results" hidden>
       <header class="brand-row">
         <button id="retake-btn" class="text-btn" type="button">← Retake</button>
         <button id="history-btn" class="text-btn" type="button">My dishes</button>
       </header>
 
-      <div id="mascot-box" class="mascot-box" hidden>
-        <span class="mascot-avatar" aria-hidden="true">🌿</span>
-        <div class="mascot-text">
-          <span id="mascot-name" class="mascot-name">Basil</span>
-          <p id="mascot-line" class="mascot-line"></p>
-        </div>
-      </div>
-
-      <div id="why-note" class="why-note" hidden>
-        <span aria-hidden="true">✦</span> I picked these from what you liked before.
-      </div>
-
       <div class="results-hero">
         <p id="results-kicker" class="eyebrow"></p>
         <h1 id="results-title"></h1>
-        <p id="results-summary" class="lede"></p>
         <div id="seen-ingredients" class="seen-chips" aria-label="Ingredients detected"></div>
       </div>
 
       <div id="recipe-list" class="recipe-list"></div>
-      <div id="no-results" class="no-results" hidden>
-        <h2>No exact dinner yet.</h2>
-        <p>Add a few more ingredients, or try again with a clearer photo.</p>
-      </div>
 
       <footer class="site-footer">
         <span class="demo-label">MVP demo</span>
-        <p>AI ingredient recognition · matches only what you have · memory stays on your phone</p>
+        <p>Memory stays on your phone · see what's shared in ⚙ settings</p>
       </footer>
     </section>
 
-    <!-- SCREEN 4: HISTORY -->
+    <!-- HISTORY SCREEN -->
     <section id="history-screen" class="screen screen--results" hidden>
       <header class="brand-row">
         <button id="back-from-history" class="text-btn" type="button">← Back</button>
@@ -93,6 +100,25 @@
       <h1 class="history-title">Dishes I’ve made</h1>
       <p id="history-count" class="history-count"></p>
       <div id="history-list" class="history-list"></div>
+    </section>
+
+    <!-- SETTINGS SCREEN -->
+    <section id="settings-screen" class="screen screen--settings" hidden>
+      <header class="brand-row">
+        <button id="back-from-settings" class="text-btn" type="button">← Back</button>
+        <span class="demo-label">Settings</span>
+      </header>
+
+      <h1 class="settings-title">What Basil knows about you</h1>
+      <p class="settings-sub">This is the only data that leaves your phone. It has no name, no location, no photos — just your taste and your own words. Saved only on this device.</p>
+
+      <div id="summary-box" class="summary-box"></div>
+
+      <div class="settings-actions">
+        <button id="export-btn" class="primary-btn" type="button">Download my data (JSON)</button>
+        <button id="copy-btn" class="secondary-btn" type="button">Copy to clipboard</button>
+        <button id="clear-btn" class="danger-btn" type="button">Erase everything on this phone</button>
+      </div>
     </section>
 
   </main>
