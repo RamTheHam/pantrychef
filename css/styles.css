@@ -118,6 +118,29 @@ body {
   text-align: center;
 }
 
+.basics-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 8px 10px;
+  padding: 12px 14px;
+  background: rgba(15, 42, 28, 0.06);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.basics-toggle input {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  accent-color: var(--green-soft);
+  cursor: pointer;
+}
+.basics-toggle span { flex: 1; }
+
 /* ---- LOADING ---- */
 .screen--loading {
   min-height: calc(100dvh - 48px);
@@ -221,6 +244,23 @@ body {
 }
 .match-tag { background: rgba(28, 74, 51, 0.12); color: var(--green-soft); }
 .time-tag { background: rgba(226, 84, 45, 0.1); color: var(--accent); }
+.serve-tag { background: rgba(15, 42, 28, 0.08); color: var(--ink-soft); }
+.diet-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+.diet-chip {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(238, 192, 79, 0.2);
+  color: #8a6a1c;
+}
 .recipe-card h2 {
   font-family: Georgia, "Times New Roman", serif;
   font-size: 21px;

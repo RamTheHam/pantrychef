@@ -10,6 +10,7 @@
     resultsScreen: document.getElementById("results-screen"),
     captureBtn: document.getElementById("capture-btn"),
     fileInput: document.getElementById("file-input"),
+    assumeBasics: document.getElementById("assume-basics"),
     loadingStatus: document.getElementById("loading-status"),
     resultsKicker: document.getElementById("results-kicker"),
     resultsTitle: document.getElementById("results-title"),
@@ -61,7 +62,10 @@
     return fetch(API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image: dataUrl })
+      body: JSON.stringify({
+        image: dataUrl,
+        assume_basics: els.assumeBasics.checked
+      })
     }).then(function (resp) {
       if (!resp.ok) {
         return resp.json().then(function (e) {
@@ -97,12 +101,17 @@
       var featured = recipe.match === "exact" && i === 0;
       var tag = recipe.match === "exact" ? "Nothing to buy" : recipe.missing.length + " to buy";
       var missingChips = recipe.missing.map(function (m) { return cap(m); }).join(", ");
+      var dietChips = (recipe.dietary || []).map(function (d) {
+        return '<span class="diet-chip">' + escapeHtml(d) + "</span>";
+      }).join("");
+      var serves = recipe.serves ? '<span class="serve-tag">Serves ' + recipe.serves + "</span>" : "";
       var body = '<article class="recipe-card' + (featured ? " featured" : "") + '">' +
         '<div class="recipe-main">' +
           '<div class="recipe-meta"><span class="match-tag">' + (recipe.match === "exact" ? "Exact match" : "Closest") +
-          '</span><span class="time-tag">' + recipe.time + ' min</span></div>' +
-          "<h2>" + recipe.name + "</h2>" +
-          '<p class="recipe-description">' + recipe.description + "</p>" +
+          '</span><span class="time-tag">' + recipe.time + ' min</span>' + serves + '</div>' +
+          "<h2>" + escapeHtml(recipe.name) + "</h2>" +
+          '<p class="recipe-description">' + escapeHtml(recipe.description) + "</p>" +
+          (dietChips ? '<div class="diet-row">' + dietChips + "</div>" : "") +
           '<div class="recipe-proof"><span>' + recipe.detected_ingredients.length +
           " of your ingredients</span><span>" + tag + "</span></div>" +
         "</div>" +
@@ -110,10 +119,10 @@
           "<summary>See ingredients &amp; method</summary>" +
           '<div class="recipe-body">' +
             "<h3>Uses only</h3><ul>" + recipe.recipe_ingredients.map(function (ing) {
-              return "<li>" + cap(ing) + "</li>";
+              return "<li>" + cap(escapeHtml(ing)) + "</li>";
             }).join("") + "</ul>" +
             (recipe.missing.length ? "<h3>You'd need</h3><p class=\"missing-list\">" + missingChips + "</p>" : "") +
-            "<h3>Method</h3><ol>" + recipe.steps.map(function (s) { return "<li>" + s + "</li>"; }).join("") + "</ol>" +
+            "<h3>Method</h3><ol>" + recipe.steps.map(function (s) { return "<li>" + escapeHtml(s) + "</li>"; }).join("") + "</ol>" +
           "</div>" +
         "</details>" +
       "</article>";
