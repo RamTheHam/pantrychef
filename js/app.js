@@ -1,272 +1,153 @@
 (function () {
   "use strict";
 
-  const ingredientGroups = [
-    { name: "Fresh", items: ["eggs", "spinach", "onion", "garlic", "lemon", "tomatoes", "potatoes", "mushrooms"] },
-    { name: "Cupboard", items: ["rice", "pasta", "bread", "chickpeas", "black beans", "tuna", "tortillas", "oats"] },
-    { name: "Fridge", items: ["cheddar", "milk", "yogurt", "butter"] },
-    { name: "Basics", items: ["olive oil", "salt", "pepper", "paprika", "water"] }
-  ];
+  // Live Modal endpoint (photo -> ingredients via vision, -> recipes via DeepSeek Flash).
+  var API_URL = window.PANTRYCHEF_API_URL || "https://ramtheham--pantrychef-analyze.modal.run";
 
-  const recipes = [
-    {
-      id: "tomato-egg-rice",
-      name: "Jammy tomato egg rice",
-      description: "Soft eggs folded through garlicky tomato rice — fast, savory and deeply comforting.",
-      time: 20,
-      ingredients: ["rice", "eggs", "tomatoes", "onion", "garlic", "olive oil", "salt", "pepper", "water"],
-      steps: [
-        "Cook the rice until tender.",
-        "Soften onion and garlic in olive oil, then add chopped tomatoes.",
-        "Fold in the rice and crack in the eggs. Cover until the whites set; season."
-      ]
-    },
-    {
-      id: "chickpea-rice-bowl",
-      name: "Crispy chickpea rice bowl",
-      description: "Golden chickpeas, bright lemon and wilted spinach over warm rice.",
-      time: 25,
-      ingredients: ["chickpeas", "rice", "spinach", "lemon", "garlic", "olive oil", "salt", "pepper", "water"],
-      steps: [
-        "Cook the rice and drain the chickpeas well.",
-        "Crisp chickpeas and garlic in olive oil; season with salt and pepper.",
-        "Wilt in spinach, squeeze over lemon and spoon onto the rice."
-      ]
-    },
-    {
-      id: "pantry-tomato-pasta",
-      name: "Slow-sizzle tomato pasta",
-      description: "A glossy, rich tomato sauce made from the simplest cupboard staples.",
-      time: 25,
-      ingredients: ["pasta", "tomatoes", "onion", "garlic", "olive oil", "salt", "pepper", "water"],
-      steps: [
-        "Boil the pasta in salted water, saving a mug of cooking water.",
-        "Sizzle onion and garlic in olive oil; add chopped tomatoes and simmer.",
-        "Toss pasta through the sauce with a splash of cooking water and pepper."
-      ]
-    },
-    {
-      id: "spinach-cheddar-omelet",
-      name: "Spinach cheddar omelet",
-      description: "Crisp-edged eggs with a molten cheddar center and plenty of greens.",
-      time: 12,
-      ingredients: ["eggs", "spinach", "cheddar", "onion", "olive oil", "salt", "pepper"],
-      steps: [
-        "Soften sliced onion in olive oil and wilt in the spinach.",
-        "Beat eggs with salt and pepper, then pour into the pan.",
-        "Scatter over cheddar, fold and cook until just set."
-      ]
-    },
-    {
-      id: "garlicky-tomato-toast",
-      name: "Garlicky tomato toast",
-      description: "Juicy tomatoes tumbled over crisp garlic-rubbed bread with a peppery finish.",
-      time: 10,
-      ingredients: ["bread", "tomatoes", "garlic", "olive oil", "salt", "pepper"],
-      steps: [
-        "Toast the bread until deeply golden.",
-        "Rub the warm toast with cut garlic and drizzle with olive oil.",
-        "Pile on chopped, salted tomatoes and finish with pepper."
-      ]
-    },
-    {
-      id: "tuna-tomato-pasta",
-      name: "Tuna tomato pasta",
-      description: "A briny, weeknight tomato pasta with pantry tuna.",
-      time: 20,
-      ingredients: ["pasta", "tuna", "tomatoes", "garlic", "olive oil", "salt", "pepper", "water"],
-      steps: ["Boil the pasta.", "Simmer tomatoes and garlic in oil, then fold in tuna.", "Toss together and season."]
-    },
-    {
-      id: "black-bean-quesadilla",
-      name: "Black bean quesadilla",
-      description: "Toasty tortillas packed with beans and melted cheddar.",
-      time: 15,
-      ingredients: ["tortillas", "black beans", "cheddar", "onion", "olive oil", "salt"],
-      steps: ["Mash and season the beans.", "Fill tortillas with beans, onion and cheddar.", "Toast in oil until crisp."]
-    },
-    {
-      id: "crispy-potato-hash",
-      name: "Crispy potato egg hash",
-      description: "Golden potatoes, soft onions and runny eggs from one pan.",
-      time: 30,
-      ingredients: ["potatoes", "eggs", "onion", "olive oil", "salt", "pepper", "paprika", "water"],
-      steps: ["Dice and boil potatoes until almost tender.", "Crisp with onion, oil and paprika.", "Add eggs and cover until set."]
-    },
-    {
-      id: "mushroom-toast",
-      name: "Buttery mushroom toast",
-      description: "Deeply browned mushrooms on crisp toast.",
-      time: 15,
-      ingredients: ["mushrooms", "bread", "butter", "garlic", "salt", "pepper"],
-      steps: ["Toast the bread.", "Brown mushrooms in butter.", "Add garlic, season and spoon over toast."]
-    }
-  ];
-
-  const demoPantry = [
-    "eggs", "spinach", "onion", "garlic", "lemon", "tomatoes", "rice",
-    "pasta", "bread", "chickpeas", "cheddar", "olive oil", "salt", "pepper", "water"
-  ];
-
-  const state = {
-    selected: new Set(),
-    source: "manual"
-  };
-
-  const elements = {
-    pickerScreen: document.getElementById("picker-screen"),
+  var els = {
+    cameraScreen: document.getElementById("camera-screen"),
+    loadingScreen: document.getElementById("loading-screen"),
     resultsScreen: document.getElementById("results-screen"),
-    groups: document.getElementById("ingredient-groups"),
-    search: document.getElementById("ingredient-search"),
-    emptySearch: document.getElementById("empty-search"),
-    selectedCount: document.getElementById("selected-count"),
-    matchButton: document.getElementById("match-button"),
-    resultsTitle: document.getElementById("results-title"),
+    captureBtn: document.getElementById("capture-btn"),
+    fileInput: document.getElementById("file-input"),
+    loadingStatus: document.getElementById("loading-status"),
     resultsKicker: document.getElementById("results-kicker"),
+    resultsTitle: document.getElementById("results-title"),
     resultsSummary: document.getElementById("results-summary"),
-    pantryCount: document.getElementById("pantry-count"),
-    pantryList: document.getElementById("selected-pantry-list"),
+    seenIngredients: document.getElementById("seen-ingredients"),
     recipeList: document.getElementById("recipe-list"),
-    noResults: document.getElementById("no-results")
+    noResults: document.getElementById("no-results"),
+    retakeBtn: document.getElementById("retake-btn")
   };
 
-  function titleCase(value) {
-    return value.replace(/\b\w/g, function (letter) { return letter.toUpperCase(); });
+  function show(screen) {
+    els.cameraScreen.hidden = screen !== "camera";
+    els.loadingScreen.hidden = screen !== "loading";
+    els.resultsScreen.hidden = screen !== "results";
+    window.scrollTo(0, 0);
   }
 
-  function getMatches(selected) {
-    return recipes
-      .filter(function (recipe) {
-        return recipe.ingredients.every(function (ingredient) { return selected.has(ingredient); });
-      })
-      .sort(function (a, b) {
-        return b.ingredients.length - a.ingredients.length || a.time - b.time;
+  function fileToB64(file) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () { resolve(reader.result); };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Compress/resize client-side before upload to keep it fast and under limits.
+  function compressImage(dataUrl, maxDim) {
+    maxDim = maxDim || 1200;
+    return new Promise(function (resolve) {
+      var img = new Image();
+      img.onload = function () {
+        var scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        var canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        var ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.onerror = function () { resolve(dataUrl); };
+      img.src = dataUrl;
+    });
+  }
+
+  function analyze(dataUrl) {
+    show("loading");
+    els.loadingStatus.textContent = "Analysing the photo…";
+    return fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image: dataUrl })
+    }).then(function (resp) {
+      if (!resp.ok) {
+        return resp.json().then(function (e) {
+          throw new Error((e && e.detail) || ("Server error " + resp.status));
+        });
+      }
+      return resp.json();
+    });
+  }
+
+  function renderRecipes(result) {
+    var exact = result.count_exact || 0;
+    var detected = result.detected || [];
+    var owned = result.owned || [];
+
+    els.resultsKicker.innerHTML = '<span aria-hidden="true">✦</span> What I see on your counter';
+    if (exact > 0) {
+      els.resultsTitle.innerHTML = "<span>" + exact + "</span> " + (exact === 1 ? "dinner" : "dinners") + ". <em>Zero</em> extra ingredients.";
+      els.resultsSummary.textContent = "Cooked from exactly what you have. Nothing to buy.";
+    } else {
+      els.resultsTitle.innerHTML = "Almost there.";
+      els.resultsSummary.textContent = "I spotted these ingredients but no recipe fits exactly yet. Closest matches below.";
+    }
+
+    // detected chips
+    var chips = detected.map(function (item) {
+      return '<span class="seen-chip">' + escapeHtml(cap(item)) + "</span>";
+    }).join("");
+    els.seenIngredients.innerHTML = chips || '<span class="seen-chip muted">No items recognised</span>';
+
+    // recipes
+    els.recipeList.innerHTML = result.results.map(function (recipe, i) {
+      var featured = recipe.match === "exact" && i === 0;
+      var tag = recipe.match === "exact" ? "Nothing to buy" : recipe.missing.length + " to buy";
+      var missingChips = recipe.missing.map(function (m) { return cap(m); }).join(", ");
+      var body = '<article class="recipe-card' + (featured ? " featured" : "") + '">' +
+        '<div class="recipe-main">' +
+          '<div class="recipe-meta"><span class="match-tag">' + (recipe.match === "exact" ? "Exact match" : "Closest") +
+          '</span><span class="time-tag">' + recipe.time + ' min</span></div>' +
+          "<h2>" + recipe.name + "</h2>" +
+          '<p class="recipe-description">' + recipe.description + "</p>" +
+          '<div class="recipe-proof"><span>' + recipe.detected_ingredients.length +
+          " of your ingredients</span><span>" + tag + "</span></div>" +
+        "</div>" +
+        '<details class="recipe-details">' +
+          "<summary>See ingredients &amp; method</summary>" +
+          '<div class="recipe-body">' +
+            "<h3>Uses only</h3><ul>" + recipe.recipe_ingredients.map(function (ing) {
+              return "<li>" + cap(ing) + "</li>";
+            }).join("") + "</ul>" +
+            (recipe.missing.length ? "<h3>You'd need</h3><p class=\"missing-list\">" + missingChips + "</p>" : "") +
+            "<h3>Method</h3><ol>" + recipe.steps.map(function (s) { return "<li>" + s + "</li>"; }).join("") + "</ol>" +
+          "</div>" +
+        "</details>" +
+      "</article>";
+      return body;
+    }).join("");
+
+    els.noResults.hidden = result.results.length > 0;
+    show("results");
+  }
+
+  function cap(s) {
+    return s.replace(/\b\w/g, function (l) { return l.toUpperCase(); });
+  }
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  els.captureBtn.addEventListener("click", function () { els.fileInput.click(); });
+  els.fileInput.addEventListener("change", function () {
+    var file = els.fileInput.files && els.fileInput.files[0];
+    if (!file) return;
+    fileToB64(file)
+      .then(function (dataUrl) { return compressImage(dataUrl); })
+      .then(analyze)
+      .then(renderRecipes)
+      .catch(function (err) {
+        els.loadingStatus.textContent = "Something went wrong: " + err.message;
+        setTimeout(function () { show("camera"); }, 2500);
       });
-  }
-
-  function renderIngredients(filter) {
-    const query = (filter || "").trim().toLowerCase();
-    let visibleItems = 0;
-
-    elements.groups.innerHTML = ingredientGroups.map(function (group) {
-      const filteredItems = group.items.filter(function (item) { return item.includes(query); });
-      visibleItems += filteredItems.length;
-      if (!filteredItems.length) return "";
-
-      const options = filteredItems.map(function (item) {
-        const pressed = state.selected.has(item);
-        return '<button class="ingredient-chip" type="button" data-ingredient="' + item +
-          '" aria-pressed="' + pressed + '">' + titleCase(item) + "</button>";
-      }).join("");
-
-      return '<section class="ingredient-group"><h3>' + group.name +
-        '</h3><div class="ingredient-options">' + options + "</div></section>";
-    }).join("");
-
-    elements.emptySearch.hidden = visibleItems > 0;
-  }
-
-  function updateSelectionUI() {
-    const count = state.selected.size;
-    elements.selectedCount.textContent = count + " selected";
-    elements.matchButton.disabled = count === 0;
-  }
-
-  function renderPantry() {
-    const selectedItems = Array.from(state.selected);
-    elements.pantryCount.textContent = selectedItems.length + " ingredients";
-    elements.pantryList.innerHTML = selectedItems.map(function (item) {
-      return "<span>" + titleCase(item) + "</span>";
-    }).join("");
-  }
-
-  function recipeCard(recipe, index) {
-    const ingredientItems = recipe.ingredients.map(function (ingredient) {
-      return "<li>" + titleCase(ingredient) + "</li>";
-    }).join("");
-    const steps = recipe.steps.map(function (step) { return "<li>" + step + "</li>"; }).join("");
-    const featured = index === 0 ? " featured" : "";
-    const tag = index === 0 ? "Best match" : "Exact match";
-
-    return '<article class="recipe-card' + featured + '">' +
-      '<div class="recipe-main">' +
-        '<div class="recipe-meta"><span class="match-tag">' + tag +
-        '</span><span class="time-tag">' + recipe.time + ' min</span></div>' +
-        "<h2>" + recipe.name + "</h2>" +
-        '<p class="recipe-description">' + recipe.description + "</p>" +
-        '<div class="recipe-proof"><span>' + recipe.ingredients.length +
-        ' of your ingredients</span><span class="nothing-to-buy">0 to buy</span></div>' +
-      "</div>" +
-      '<details class="recipe-details">' +
-        "<summary>See ingredients &amp; method</summary>" +
-        '<div class="recipe-body"><h3>Uses only</h3><ul>' + ingredientItems +
-        "</ul><h3>Method</h3><ol>" + steps + "</ol></div>" +
-      "</details>" +
-    "</article>";
-  }
-
-  function showResults() {
-    const matches = getMatches(state.selected);
-    const count = matches.length;
-    const noun = count === 1 ? "dinner" : "dinners";
-
-    elements.resultsTitle.innerHTML = "<span>" + count + "</span> " + noun + '. <em>Zero</em> extra ingredients.';
-    elements.resultsKicker.innerHTML = '<span aria-hidden="true">✦</span> ' +
-      (state.source === "demo" ? "Demo pantry · exact matches" : "Your pantry · exact matches");
-    elements.resultsSummary.textContent = count
-      ? "Every option below can be cooked from the ingredients you selected — and nothing outside that list."
-      : "The rules engine found no curated recipe whose full ingredient list fits your current pantry.";
-    elements.recipeList.innerHTML = matches.map(recipeCard).join("");
-    elements.noResults.hidden = count > 0;
-
-    renderPantry();
-    elements.pickerScreen.hidden = true;
-    elements.resultsScreen.hidden = false;
-    window.scrollTo(0, 0);
-    elements.resultsTitle.focus({ preventScroll: true });
-  }
-
-  function showPicker() {
-    elements.resultsScreen.hidden = true;
-    elements.pickerScreen.hidden = false;
-    updateSelectionUI();
-    renderIngredients(elements.search.value);
-    window.scrollTo(0, 0);
-  }
-
-  function loadDemo() {
-    state.selected = new Set(demoPantry);
-    state.source = "demo";
-    showResults();
-  }
-
-  document.addEventListener("click", function (event) {
-    const ingredientButton = event.target.closest("[data-ingredient]");
-    if (ingredientButton) {
-      const ingredient = ingredientButton.dataset.ingredient;
-      state.source = "manual";
-      if (state.selected.has(ingredient)) state.selected.delete(ingredient);
-      else state.selected.add(ingredient);
-      ingredientButton.setAttribute("aria-pressed", String(state.selected.has(ingredient)));
-      updateSelectionUI();
-      return;
-    }
-
-    const actionButton = event.target.closest("[data-action]");
-    if (!actionButton) return;
-
-    const action = actionButton.dataset.action;
-    if (action === "demo") loadDemo();
-    if (action === "match") showResults();
-    if (action === "back" || action === "home") {
-      event.preventDefault();
-      showPicker();
-    }
   });
-
-  elements.search.addEventListener("input", function (event) {
-    renderIngredients(event.target.value);
+  els.retakeBtn.addEventListener("click", function () {
+    els.fileInput.value = "";
+    show("camera");
   });
-
-  renderIngredients();
 })();
