@@ -1,0 +1,13 @@
+{
+  "shape": "package",
+  "pkg": "@pantrychef/design-system",
+  "globalName": "PantryChefDS",
+  "buildCmd": "npm --prefix design-system run build",
+  "srcDir": "src",
+  "tsconfig": "tsconfig.build.json",
+  "cssEntry": "dist/styles.css",
+  "tokensGlob": "dist/tokens.css",
+  "docsDir": "docs",
+  "guidelinesGlob": [],
+  "readmeHeader": ".design-sync/conventions.md"
+}

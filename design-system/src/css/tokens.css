@@ -1,0 +1,30 @@
+/* PantryChef design tokens.
+   The single source of the palette, radii, elevation and type families. */
+:root {
+  /* ink & paper */
+  --ink: #10231a;
+  --ink-soft: #4a5d52;
+  --paper: #f6f1e7;
+  --card: #ffffff;
+
+  /* brand greens */
+  --green: #0f2a1c;
+  --green-soft: #1c4a33;
+
+  /* accent (the orange that marks anything the user should look at) */
+  --accent: #e2542d;
+  --accent-soft: #ff7a4d;
+
+  /* gold — grading, pro tips, anything celebratory */
+  --gold: #eec04f;
+
+  /* shape */
+  --radius-lg: 22px;
+  --radius-sm: 14px;
+  --shadow: 0 18px 40px rgba(15, 42, 28, 0.14);
+  --shadow-card: 0 4px 14px rgba(15, 42, 28, 0.07);
+
+  /* type */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-serif: Georgia, "Times New Roman", serif;
+}
