@@ -21,7 +21,7 @@ body {
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
 }
-.app-shell { max-width: 480px; min-height: 100dvh; margin: 0 auto; padding: 14px 20px 30px; }
+.app-shell { max-width: 480px; min-height: 100dvh; margin: 0 auto; padding: 14px 20px 30px; display: flex; flex-direction: column; }
 
 /* ---- topbar ---- */
 .topbar { display: flex; align-items: center; justify-content: space-between; padding: 4px 0 10px; }
@@ -36,7 +36,7 @@ body {
 .demo-label { display: inline-block; padding: 4px 9px; border-radius: 999px; background: rgba(226,84,45,0.12); color: var(--accent); font-size: 10px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
 
 /* ---- CAMERA ---- */
-.screen--camera { display: flex; flex-direction: column; min-height: calc(100dvh - 44px); }
+.screen--camera { display: flex; flex-direction: column; flex: 1; }
 .camera-body { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 22px; }
 
 .camera-stage { display: flex; flex-direction: column; align-items: center; }
@@ -87,7 +87,7 @@ body {
 .basics-toggle span { flex: 1; }
 
 /* ---- REVEAL (flip card) ---- */
-.screen--reveal { min-height: calc(100dvh - 44px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 20px 0; }
+.screen--reveal { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 20px 0; }
 .flip-card { width: 100%; max-width: 360px; height: 300px; perspective: 1200px; }
 .flip-card-inner {
   position: relative; width: 100%; height: 100%;
