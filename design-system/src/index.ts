@@ -30,8 +30,8 @@ export type { DemoLabelProps } from './components/DemoLabel.js';
 export { Eyebrow } from './components/Eyebrow.js';
 export type { EyebrowProps } from './components/Eyebrow.js';
 
-export { FlipCard, RevealSummary } from './components/FlipCard.js';
-export type { FlipCardProps, RevealSummaryProps } from './components/FlipCard.js';
+export { FlipCard, RevealSummary, RevealThinking } from './components/FlipCard.js';
+export type { FlipCardProps, RevealSummaryProps, RevealThinkingProps } from './components/FlipCard.js';
 
 export { HistoryItem, HistoryList } from './components/HistoryItem.js';
 export type { HistoryItemProps, HistoryListProps } from './components/HistoryItem.js';

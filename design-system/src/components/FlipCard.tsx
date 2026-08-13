@@ -29,6 +29,27 @@ export function FlipCard({ back, front, flipped, shaking, className }: FlipCardP
   );
 }
 
+export interface RevealThinkingProps {
+  /** Basil's glyph, shown large above the line. */
+  avatar?: ReactNode;
+  /** What Basil says while the app works — serif, white, sentence case. */
+  children?: ReactNode;
+}
+
+/**
+ * The back (waiting) face of a {@link FlipCard}: a big mascot glyph over a line
+ * of white serif text. Use this rather than {@link MascotPrompt} on the dark
+ * face — MascotPrompt's ink text disappears against the green.
+ */
+export function RevealThinking({ avatar = '🌿', children }: RevealThinkingProps) {
+  return (
+    <>
+      <span className="mascot-avatar big" aria-hidden="true">{avatar}</span>
+      <p className="reveal-thinking">{children}</p>
+    </>
+  );
+}
+
 export interface RevealSummaryProps {
   /** Dish name, serif. */
   name: string;
