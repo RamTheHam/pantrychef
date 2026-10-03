@@ -192,3 +192,13 @@ body {
 .primary-btn { background: var(--green-soft); color: #fff; }
 .secondary-btn { background: rgba(15,42,28,0.08); color: var(--ink); }
 .danger-btn { background: rgba(226,84,45,0.1); color: var(--accent); }
+
+/* Author display rules must preserve the native hidden attribute. */
+[hidden] { display: none !important; }
+.request-error { color: var(--accent); margin: 12px 0; font-size: 14px; line-height: 1.5; }
+.recipe-card, .summary-kv .v, .history-name { overflow-wrap: anywhere; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  .flip-card-inner { transition: none; }
+  .flip-card.shake .flip-card-inner { animation: none; }
+}

@@ -7,3 +7,6 @@ ds-bundle/
 .design-sync/.cache/
 .design-sync/learnings/
 .design-sync/node_modules
+
+# Test reports and local browser state
+.e2e/

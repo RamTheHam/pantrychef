@@ -5,7 +5,19 @@
 
   // ---- local memory (GDPR-safe) ----
   var MEM_KEY = "pantrychef.v1";
-  function loadMemory() { try { return JSON.parse(localStorage.getItem(MEM_KEY)) || {}; } catch (e) { return {}; } }
+  function loadMemory() {
+    try {
+      var stored = JSON.parse(localStorage.getItem(MEM_KEY));
+      if (!stored || typeof stored !== "object" || Array.isArray(stored)) return {};
+      return {
+        mascot_name: typeof stored.mascot_name === "string" ? stored.mascot_name : "Basil",
+        history: Array.isArray(stored.history) ? stored.history.filter(function (h) {
+          return h && typeof h.name === "string" && Number.isInteger(h.stars) && h.stars >= 1 && h.stars <= 5 && Array.isArray(h.ingredients);
+        }) : [],
+        last_pantry: Array.isArray(stored.last_pantry) ? stored.last_pantry.filter(function (i) { return typeof i === "string"; }) : []
+      };
+    } catch (e) { return {}; }
+  }
   function saveMemory(m) { try { localStorage.setItem(MEM_KEY, JSON.stringify(m)); } catch (e) {} }
   var mem = loadMemory();
   if (!mem.mascot_name) mem.mascot_name = "Basil";
@@ -45,11 +57,50 @@
     exportBtn: document.getElementById("export-btn"),
     copyBtn: document.getElementById("copy-btn"),
     clearBtn: document.getElementById("clear-btn"),
-    cameraMascotLine: document.getElementById("camera-mascot-line")
+    cameraMascotLine: document.getElementById("camera-mascot-line"),
+    requestError: document.getElementById("request-error"),
+    retryBtn: document.getElementById("retry-btn"),
+    cancelBtn: document.getElementById("cancel-btn"),
+    dataStatus: document.getElementById("data-status")
   };
 
   var multiMode = false;
   var pendingImages = [];   // dataURLs queued in x2 mode
+  var lastImages = [];
+  var request = null;
+  var generation = 0;
+  var timers = [];
+
+  function stopRequest() {
+    generation++;
+    if (request) request.abort();
+    request = null;
+    timers.forEach(clearTimeout);
+    timers = [];
+    pendingImages = [];
+    els.revealCard.classList.remove("shake", "flipped");
+  }
+  function later(fn, delay) { timers.push(setTimeout(fn, delay)); }
+  function reportError(message) {
+    els.requestError.textContent = message;
+    els.requestError.hidden = false;
+    els.retryBtn.hidden = !lastImages.length;
+    els.revealCard.classList.remove("shake", "flipped");
+    show("camera");
+  }
+  function resetCapture() {
+    stopRequest();
+    els.requestError.textContent = "";
+    els.requestError.hidden = true;
+    els.retryBtn.hidden = true;
+    multiMode = false;
+    els.multiBtn.classList.remove("active");
+    els.multiBtn.setAttribute("aria-pressed", "false");
+    els.cameraMascotLine.textContent = "Just photograph your ingredients";
+    els.fileInput.value = "";
+    els.libraryInput.value = "";
+    show("camera");
+  }
 
   function show(screen) {
     els.cameraScreen.hidden = screen !== "camera";
@@ -71,7 +122,7 @@
 
   function compressImage(dataUrl, maxDim) {
     maxDim = maxDim || 1200;
-    return new Promise(function (resolve) {
+    return new Promise(function (resolve, reject) {
       var img = new Image();
       img.onload = function () {
         var scale = Math.min(1, maxDim / Math.max(img.width, img.height));
@@ -81,7 +132,7 @@
         c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
         resolve(c.toDataURL("image/jpeg", 0.82));
       };
-      img.onerror = function () { resolve(dataUrl); };
+      img.onerror = function () { reject(new Error("This photo could not be read. Choose a JPEG, PNG or WebP image.")); };
       img.src = dataUrl;
     });
   }
@@ -114,9 +165,10 @@
     };
   }
 
-  function analyze(dataUrls) {
+  function analyze(dataUrls, signal) {
     return fetch(API_URL, {
       method: "POST",
+      signal: signal,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         images: dataUrls,
@@ -124,19 +176,35 @@
         profile: buildProfile()
       })
     }).then(function (resp) {
-      if (!resp.ok) {
-        return resp.json().then(function (e) {
-          throw new Error((e && e.error) || (e && e.detail) || ("Server error " + resp.status));
-        });
-      }
-      return resp.json();
+      return resp.text().then(function (body) {
+        var result;
+        try { result = JSON.parse(body); } catch (e) {
+          throw new Error(resp.ok ? "The server returned an unreadable response. Try again." : "Server error " + resp.status + ". Try again.");
+        }
+        if (!resp.ok) throw new Error(result && typeof result.error === "string" ? result.error : result && typeof result.detail === "string" ? result.detail : "Server error " + resp.status);
+        return validateResult(result);
+      });
     });
+  }
+
+  function stringList(value) { return Array.isArray(value) && value.every(function (v) { return typeof v === "string"; }); }
+  function validateResult(result) {
+    if (!result || !stringList(result.detected) || !Array.isArray(result.results)) throw new Error("The server returned incomplete recipes. Try again.");
+    result.results.forEach(function (r) {
+      if (!r || typeof r.name !== "string" || typeof r.description !== "string" || !Number.isFinite(r.time) || r.time < 0 || !stringList(r.detected_ingredients) || !stringList(r.missing) || !stringList(r.recipe_ingredients) || !stringList(r.steps)) throw new Error("The server returned incomplete recipes. Try again.");
+      r.dietary = stringList(r.dietary) ? r.dietary : [];
+      // Missing ingredients always take precedence over an optimistic model label.
+      r.match = r.match === "exact" && !r.missing.length ? "exact" : "closest";
+      r.serves = Number.isInteger(r.serves) && r.serves > 0 ? r.serves : null;
+    });
+    result.count_exact = result.results.filter(function (r) { return r.match === "exact"; }).length;
+    return result;
   }
 
   // ---- reveal: shake 2s while thinking, then flip to show recipe #1 ----
   function reveal(result) {
     show("reveal");
-    var first = result.results && result.results[0];
+    var first = result.results[0];
     els.revealThinking.textContent = "Reading your food…";
     els.revealCard.classList.remove("flipped", "shake");
     els.revealSub.textContent = "";
@@ -149,22 +217,22 @@
     function flip() {
       var elapsed = Date.now() - started;
       var wait = Math.max(0, minShake - elapsed);
-      setTimeout(function () {
+      later(function () {
         els.revealCard.classList.remove("shake");
         els.revealCard.classList.add("flipped");
         renderRevealFront(first, result);
-        setTimeout(function () { renderResults(result); }, 2200);
+        later(function () { renderResults(result); }, 2200);
       }, wait);
     }
 
     if (first) {
       flip();
     } else {
-      setTimeout(function () {
+      later(function () {
         els.revealCard.classList.remove("shake");
         els.revealCard.classList.add("flipped");
         renderRevealFront(null, result);
-        setTimeout(function () { renderResults(result); }, 1600);
+        later(function () { renderResults(result); }, 1600);
       }, minShake);
     }
   }
@@ -176,10 +244,10 @@
     }
     els.revealContent.innerHTML =
       '<div class="reveal-recipe">' +
-        '<div class="reveal-meta"><span class="match-tag">Exact match</span><span class="time-tag">' + first.time + ' min</span></div>' +
+        '<div class="reveal-meta"><span class="match-tag">' + (first.match === "exact" ? "Exact match" : "Closest") + '</span><span class="time-tag">' + first.time + ' min</span></div>' +
         '<h2>' + escapeHtml(first.name) + '</h2>' +
         '<p class="reveal-desc">' + escapeHtml(first.description) + '</p>' +
-        '<div class="reveal-proof">0 to buy · from ' + first.detected_ingredients.length + ' of your ingredients</div>' +
+        '<div class="reveal-proof">' + (first.missing.length ? first.missing.length + " to buy" : "0 to buy") + ' · from ' + first.detected_ingredients.length + ' of your ingredients</div>' +
       '</div>';
     els.revealSub.textContent = (result.mascot_line || "");
   }
@@ -229,7 +297,7 @@
         '<div class="grade-row" data-name="' + escapeHtml(recipe.name) + '">' +
           '<span class="grade-prompt">Grade it and I’ll know you made it:</span>' +
           '<span class="star-row">' + starWidget(recipe.id, graded ? graded.stars : 0) + "</span>" +
-          '<input class="comment-input" type="text" placeholder="one word if you like…" maxlength="80" data-name="' + escapeHtml(recipe.name) + '">' +
+          '<input class="comment-input" type="text" value="' + escapeHtml(graded ? graded.comment : "") + '" aria-label="Comment on ' + escapeHtml(recipe.name) + '" placeholder="one word if you like…" maxlength="80" data-name="' + escapeHtml(recipe.name) + '">' +
         "</div>" +
       "</article>";
     }).join("");
@@ -239,7 +307,7 @@
 
   function starWidget(id, current) {
     var out = "";
-    for (var s = 1; s <= 5; s++) out += '<button class="star' + (s <= (current || 0) ? " on" : "") + '" data-star="' + s + '" data-recipe-id="' + id + '" aria-label="' + s + ' stars">★</button>';
+    for (var s = 1; s <= 5; s++) out += '<button class="star' + (s <= (current || 0) ? " on" : "") + '" data-star="' + s + '" data-recipe-id="' + escapeHtml(id) + '" aria-label="' + s + ' stars">★</button>';
     return out;
   }
 
@@ -247,7 +315,10 @@
     var hist = mem.history || [];
     var existing = hist.filter(function (h) { return h.name === name; })[0];
     if (existing) existing.stars = stars;
-    else hist.push({ name: name, stars: stars, comment: "", ingredients: [], date: Date.now() });
+    else {
+      var input = document.querySelector('.comment-input[data-name="' + CSS.escape(name) + '"]');
+      hist.push({ name: name, stars: stars, comment: input ? input.value : "", ingredients: [], date: Date.now() });
+    }
     var card = document.querySelector('.recipe-card[data-name="' + CSS.escape(name) + '"]');
     if (card) {
       var lis = card.querySelectorAll(".recipe-body ul li"), ing = [];
@@ -267,60 +338,77 @@
 
   // ---- capture flow ----
   function handleImages(dataUrls) {
-    // strip a possible single wrap
-    var imgs = Array.isArray(dataUrls) ? dataUrls : [dataUrls];
+    stopRequest();
+    lastImages = Array.isArray(dataUrls) ? dataUrls.slice() : [dataUrls];
+    var token = generation;
+    request = new AbortController();
+    var activeRequest = request;
+    var expired = false;
+    els.requestError.hidden = true;
+    els.retryBtn.hidden = true;
+    els.revealThinking.textContent = "Reading your food…";
+    els.revealContent.textContent = "";
+    els.revealSub.textContent = "";
     show("reveal");
-    els.revealCard.classList.remove("flipped");
     els.revealCard.classList.add("shake");
-    // run the request; reveal() drives the flip timing
-    analyze(imgs).then(reveal).catch(function (err) {
-      els.revealThinking.textContent = "Something went wrong: " + err.message;
-      setTimeout(function () { show("camera"); }, 2200);
-    });
+    var timeout = setTimeout(function () { expired = true; activeRequest.abort(); }, 45000);
+    analyze(lastImages, activeRequest.signal).then(function (result) {
+      if (token !== generation) return;
+      request = null;
+      reveal(result);
+    }).catch(function (err) {
+      if (token !== generation) return;
+      request = null;
+      reportError(expired ? "This is taking too long. Try again." : err.message || "Could not reach the server. Try again.");
+    }).finally(function () { clearTimeout(timeout); });
+  }
+
+  function prepareImages(files, capture) {
+    var selected = Array.from(files || []);
+    if (!selected.length) return;
+    if (selected.length > 2) { lastImages = []; reportError("Choose up to two photos at a time."); return; }
+    if (selected.some(function (f) { return !f.type.startsWith("image/") || f.size > 20 * 1024 * 1024; })) {
+      lastImages = []; reportError("Choose images smaller than 20 MB each."); return;
+    }
+    var token = generation;
+    Promise.all(selected.map(function (f) { return fileToDataUrl(f).then(function (data) { return compressImage(data); }); })).then(function (dataUrls) {
+      if (token !== generation) return;
+      if (capture && multiMode) {
+        pendingImages = pendingImages.concat(dataUrls);
+        if (pendingImages.length < 2) { els.cameraMascotLine.textContent = "Got one — snap the second"; return; }
+        dataUrls = pendingImages.slice(0, 2);
+      }
+      handleImages(dataUrls);
+    }).catch(function (err) { if (token === generation) { lastImages = []; reportError(err.message || "This photo could not be read."); } });
   }
 
   els.captureBtn.addEventListener("click", function () { els.fileInput.click(); });
   els.libraryBtn.addEventListener("click", function () { els.libraryInput.click(); });
   els.multiBtn.addEventListener("click", function () {
+    generation++;
     multiMode = !multiMode;
+    els.multiBtn.setAttribute("aria-pressed", String(multiMode));
     els.multiBtn.classList.toggle("active", multiMode);
     pendingImages = [];
     els.cameraMascotLine.textContent = multiMode ? "Snap two photos — I’ll combine what I see" : "Just photograph your ingredients";
   });
 
   els.fileInput.addEventListener("change", function () {
-    var f = els.fileInput.files && els.fileInput.files[0];
-    if (!f) return;
-    fileToDataUrl(f).then(compressImage).then(function (dataUrl) {
-      if (multiMode) {
-        pendingImages.push(dataUrl);
-        if (pendingImages.length >= 2) {
-          handleImages(pendingImages.slice());
-          pendingImages = [];
-        } else {
-          els.cameraMascotLine.textContent = "Got one — snap the second";
-        }
-      } else {
-        handleImages([dataUrl]);
-      }
-    });
+    prepareImages(els.fileInput.files, true);
     els.fileInput.value = "";
   });
-
   els.libraryInput.addEventListener("change", function () {
-    var files = els.libraryInput.files;
-    if (!files || !files.length) return;
-    var jobs = [];
-    for (var i = 0; i < files.length; i++) jobs.push(fileToDataUrl(files[i]).then(compressImage));
-    Promise.all(jobs).then(function (dataUrls) { handleImages(dataUrls); });
+    prepareImages(els.libraryInput.files, false);
     els.libraryInput.value = "";
   });
+  els.retryBtn.addEventListener("click", function () { if (lastImages.length) handleImages(lastImages); });
+  els.cancelBtn.addEventListener("click", resetCapture);
 
   // ---- delegation: stars, comments, nav ----
   document.addEventListener("click", function (e) {
     var star = e.target.closest(".star");
     if (star) { gradeRecipe(star.closest(".grade-row").getAttribute("data-name"), parseInt(star.getAttribute("data-star"), 10)); return; }
-    if (e.target.closest("#retake-btn")) { els.fileInput.value = ""; show("camera"); return; }
+    if (e.target.closest("#retake-btn")) { resetCapture(); return; }
     if (e.target.closest("#history-btn")) { renderHistory(); show("history"); return; }
     if (e.target.closest("#back-from-history")) { show("camera"); return; }
     if (e.target.closest("#settings-btn")) { renderSettings(); show("settings"); return; }
@@ -381,16 +469,22 @@
     a.href = URL.createObjectURL(blob);
     a.download = "pantrychef-data.json";
     a.click();
-    URL.revokeObjectURL(a.href);
+    later(function () { URL.revokeObjectURL(a.href); }, 1000);
   }
   function copyData() {
-    navigator.clipboard.writeText(fullExport()).catch(function () {});
+    if (!navigator.clipboard || !navigator.clipboard.writeText) { els.dataStatus.textContent = "Clipboard is unavailable. Download your data instead."; return; }
+    navigator.clipboard.writeText(fullExport()).then(function () { els.dataStatus.textContent = "Copied your data."; }).catch(function () { els.dataStatus.textContent = "Could not copy your data. Download it instead."; });
   }
   function clearData() {
     if (!confirm("Erase all your PantryChef data on this phone? This cannot be undone.")) return;
-    localStorage.removeItem(MEM_KEY);
+    try { localStorage.removeItem(MEM_KEY); } catch (e) {}
     mem = { mascot_name: "Basil", history: [], last_pantry: [] };
     saveMemory(mem);
+    els.noteInput.value = "";
+    lastImages = [];
+    resetCapture();
     renderSettings();
+    show("settings");
+    els.dataStatus.textContent = "Your data has been erased.";
   }
 })();
