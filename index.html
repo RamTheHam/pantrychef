@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0f2a1c">
   <meta name="description" content="Snap your food. Get a recipe from what you already have.">
   <title>PantryChef — snap your food, get a recipe</title>
@@ -19,6 +19,8 @@
         <button id="settings-btn" class="icon-btn" type="button" aria-label="Settings">⚙</button>
       </header>
 
+      <p id="request-error" class="request-error" role="alert" hidden></p>
+      <button id="retry-btn" class="secondary-btn" type="button" hidden>Try again</button>
       <div class="camera-body">
         <div class="camera-stage">
           <div class="control-row">
@@ -31,13 +33,13 @@
               <span class="camera-ring" aria-hidden="true"></span>
             </button>
 
-            <button id="multi-btn" class="side-btn" type="button" aria-label="Multiple photos">
+            <button id="multi-btn" class="side-btn" type="button" aria-label="Multiple photos" aria-pressed="false">
               <span class="side-icon" aria-hidden="true">⊕</span>
               <span class="side-label">x2</span>
             </button>
           </div>
-          <input id="file-input" type="file" accept="image/*" capture="environment" hidden>
-          <input id="library-input" type="file" accept="image/*" hidden multiple>
+          <input aria-label="Food photo" id="file-input" type="file" accept="image/*" capture="environment" hidden>
+          <input aria-label="Food photos from library" id="library-input" type="file" accept="image/*" hidden multiple>
         </div>
 
         <div class="mascot-prompt">
@@ -45,7 +47,7 @@
           <p id="camera-mascot-line" class="mascot-prompt-line">Just photograph your ingredients</p>
         </div>
 
-        <input id="note-input" class="note-input" type="text" placeholder="Anything else? (optional — what do you fancy?)" maxlength="120">
+        <input aria-label="Cooking preferences" id="note-input" class="note-input" type="text" placeholder="Anything else? (optional — what do you fancy?)" maxlength="120">
 
         <label class="basics-toggle">
           <input id="assume-basics" type="checkbox" checked>
@@ -67,7 +69,8 @@
           </div>
         </div>
       </div>
-      <p id="reveal-sub" class="reveal-sub"></p>
+      <p id="reveal-sub" class="reveal-sub" role="status"></p>
+      <button id="cancel-btn" class="secondary-btn" type="button">Cancel</button>
     </section>
 
     <!-- RESULTS SCREEN -->
@@ -110,10 +113,11 @@
       </header>
 
       <h1 class="settings-title">What Basil knows about you</h1>
-      <p class="settings-sub">This is the only data that leaves your phone. It has no name, no location, no photos — just your taste and your own words. Saved only on this device.</p>
+      <p class="settings-sub">Photos, your cooking note, basics setting, and the taste summary below are sent to the AI backend when you request recipes. Your ratings and pantry memory are saved on this device. No account is required.</p>
 
       <div id="summary-box" class="summary-box"></div>
 
+      <p id="data-status" role="status"></p>
       <div class="settings-actions">
         <button id="export-btn" class="primary-btn" type="button">Download my data (JSON)</button>
         <button id="copy-btn" class="secondary-btn" type="button">Copy to clipboard</button>
@@ -121,6 +125,7 @@
       </div>
     </section>
 
+    <footer class="site-footer app-disclosure"><span class="demo-label">MVP demo</span><p>AI-generated recipes · check ingredients and cooking instructions.</p></footer>
   </main>
 </body>
 </html>
